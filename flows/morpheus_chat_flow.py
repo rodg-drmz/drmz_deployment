@@ -2,9 +2,13 @@ import json
 import re
 from typing import Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
-from crewai.flow import Flow, start
+from crewai import Flow
+from crewai.flow import start
+from datetime import datetime
 
 from crews.morpheus_crew import MorpheusCrew
+
+# Rest of your code remains exactly the same...
 
 # ── Data Models ────────────────────────────────────────────────────────────────
 Stage = Literal[
@@ -184,7 +188,7 @@ class OnboardingLogic:
         # Fallback
         return ("I'm not sure how to respond in this context. Please follow the suggested prompts.", user_data, {})
 
-# ── Simplified Flow ────────────────────────────────────────────────────────────
+# ── Flow Implementation ────────────────────────────────────────────────────────
 class MorpheusChatFlow(Flow[ChatState]):
     """Morpheus chat flow with hardcoded onboarding logic."""
 
@@ -226,7 +230,8 @@ class MorpheusChatFlow(Flow[ChatState]):
             for entry in self.state.history[-5:]:
                 history_str += f"User: {entry.get('user', '')}\nMorpheus: {entry.get('morpheus', '')}\n\n"
         
-        result = self.morpheus_crew.crew("chat").kickoff(inputs={
+        # Use the crew correctly - remove the "chat" parameter
+        result = self.morpheus_crew.crew().kickoff(inputs={
             "message": self.state.message,
             "stage": self.state.user_data.stage,
             "username": self.state.user_data.name or "User",
@@ -283,7 +288,6 @@ class MorpheusChatFlow(Flow[ChatState]):
             print(f"🎉 New user onboarded: {self.state.captured_data}")
             
     def _get_timestamp(self):
-        from datetime import datetime
         return datetime.now().isoformat()
 
 # ── Entry Points ────────────────────────────────────────────────────────────
@@ -293,12 +297,11 @@ def run():
     flow.state.message = "Hello, what can you help me with today?"
     return flow.kickoff()
 
-def kickoff():
-    """Interactive CLI that maintains state across messages."""
+if __name__ == "__main__":
+    # Interactive CLI for testing
     print("🌌 Morpheus Chat Flow - Type 'exit' to quit")
     print("Try 'drmz initiate' to start onboarding!")
     
-    # Create ONE flow instance that persists
     flow = MorpheusChatFlow()
     
     while True:
@@ -306,18 +309,10 @@ def kickoff():
         if message.lower() == 'exit':
             break
             
-        # Set message and run flow
         flow.state.message = message
         response = flow.kickoff()
         
         print(f"🧙‍♂️ Morpheus: {response}")
         
-        # Show captured data when onboarding completes
         if flow.state.captured_data and not flow.state.user_data.onboarding_started:
             print(f"\n🎉 Onboarding complete! Captured: {flow.state.captured_data}")
-
-if __name__ == "__main__":
-    kickoff()
-
-# Export for enterprise deployment
-__all__ = ["MorpheusChatFlow", "run", "kickoff"]
